@@ -21,11 +21,15 @@ router.get('/', function(req, res) {
 // middleware to use for all requests
 router.use(function(req, res, next) {
     // do logging
-    console.log('Something is happening.');
     next(); // make sure we go to the next routes and don't stop here
 });
 
-var post = function(model, req, res) {
+router.use(function(req, res, next) {
+    console.log('start');
+    next();
+});
+
+var create = function(model, req, res, next) {
     var newEntity = new model(); // create a new instance of the Bear model
     _.assign(newEntity, req.body);
 
@@ -36,37 +40,39 @@ var post = function(model, req, res) {
         }
 
         res.json(newEntity);
+        next();
     });
 };
 
-var get = function(model, req, res) {
+var getAll = function(model, req, res, next) {
     model.find(function(err, entities) {
         if (err)
             res.send(err);
 
         res.json(entities);
+        next();
     });
 };
-var getSpecific = function(model, req, res) {
+var getOne = function(model, req, res, next) {
     model.findById(req.params.id, function(err, entity) {
         if (err)
             res.send(err);
         res.json(entity);
+        next();
     });
 };
 
-var putSpecific = function(model, req, res) {
-
+var updateOne = function(model, req, res, next) {
     // use our entitiy model to find the entitiy we want
-    model.findById(req.params.entitiy_id, function(err, entitiy) {
+    model.findById(req.params.id, function(err, entity) {
 
         if (err)
             res.send(err);
 
-        entitiy.name = req.body.name; // update the entitiys info
+        _.assign(entity, req.body);
 
         // save the entitiy
-        entitiy.save(function(err) {
+        entity.save(function(err) {
             if (err)
                 res.send(err);
 
@@ -74,31 +80,39 @@ var putSpecific = function(model, req, res) {
                 message: 'model updated!'
             });
         });
+        next();
 
     });
 };
 
-var deleteSpecific = function(req, res) {
-    Bear.remove({
-        _id: req.params.bear_id
-    }, function(err, bear) {
+var deleteOne = function(model, req, res, next) {
+    model.remove({
+        _id: req.params.id
+    }, function(err, entity) {
         if (err)
             res.send(err);
 
         res.json({
             message: 'Successfully deleted'
         });
+        next();
     });
 };
 
 _.each(models, function(value, key) {
-    var modelPost = _.bind(post, null, value.model);
-    var modelGet = _.bind(get, null, value.model);
-    var modelGetIndiv = _.bind(getSpecific, null, value.model);
-    var modelPut = _.bind(putSpecific, null, value.model);
-    var modelDelete = _.bind(deleteSpecific, null, value.model);
+    var modelPost = _.bind(create, null, value.model);
+    var modelGet = _.bind(getAll, null, value.model);
+    var modelGetIndiv = _.bind(getOne, null, value.model);
+    var modelPut = _.bind(updateOne, null, value.model);
+    var modelDelete = _.bind(deleteOne, null, value.model);
     router.route('/' + value.url).post(modelPost).get(modelGet);
-    router.route('/bear/:id').get(modelGetIndiv, modelPut, modelDelete);
+    router.route('/' + value.url + '/:id').get(modelGetIndiv).put(modelPut).delete(modelDelete);
+    var historyGet = _.bind(getAll, null, value.model.historyModel());
+    router.route('/' + value.url + '/:id/history').get(historyGet);
+});
+router.use(function(req, res, next) {
+    console.log(req.method, req.originalUrl);
+    next();
 });
 
 app.use('/api', router);
