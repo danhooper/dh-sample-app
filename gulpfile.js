@@ -19,4 +19,22 @@ gulp.task('mongo', function(cb) {
     });
 });
 
-gulp.task('default', ['mongo', 'backend']);
+gulp.task('elasticsearch', function(cb) {
+    exec('elasticsearch', function(err, stdout, stderr) {
+        console.log(stdout);
+        console.error(stderr);
+        cb(err);
+    });
+});
+
+gulp.task('esbackend', function() {
+    nodemon({
+        script: './elastic-backend/server.js',
+        ext: 'js'
+    }).on('restart', function() {
+        console.log('backend restarted');
+    });
+});
+
+//gulp.task('default', ['mongo', 'backend']);
+gulp.task('default', ['elasticsearch', 'esbackend']);
